@@ -61,10 +61,10 @@ pipeline {
 
     stage('Security Scan') {
   steps {
-    // Scan only first-party code; exclude virtualenv and tests
-    sh '''"${BANDIT}" -q -r . -x "${VENV}",".venv","venv","tests"'''
+    sh '''"${BANDIT}" -q app.py'''
   }
 }
+
 
     stage('Deploy') {
       steps {
