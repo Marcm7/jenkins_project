@@ -60,11 +60,11 @@ pipeline {
     }
 
     stage('Security Scan') {
-      steps {
-        // start strict; if it fails due to findings, you can temporarily add:  || true
-        sh '''"${BANDIT}" -q -r .'''
-      }
-    }
+  steps {
+    // Scan only first-party code; exclude virtualenv and tests
+    sh '''"${BANDIT}" -q -r . -x "${VENV}",".venv","venv","tests"'''
+  }
+}
 
     stage('Deploy') {
       steps {
