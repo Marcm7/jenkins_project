@@ -3,49 +3,80 @@ pipeline {
 
   environment {
     VENV = 'venv'
-    ACTIVATE = "source ${VENV}/bin/activate"
+    PY   = "${WORKSPACE}/${VENV}/bin/python"
+    PIP  = "${WORKSPACE}/${VENV}/bin/pip"
+    F8   = "${WORKSPACE}/${VENV}/bin/flake8"
+    PYTEST = "${WORKSPACE}/${VENV}/bin/pytest"
+    COV  = "${WORKSPACE}/${VENV}/bin/coverage"
+    BANDIT = "${WORKSPACE}/${VENV}/bin/bandit"
   }
 
   stages {
-    stage('Setup') {
+    stage('Checkout info') {
       steps {
         sh '''
-          if [ ! -d "${VENV}" ]; then python3 -m venv ${VENV}; fi
-          ${ACTIVATE} && pip install -U pip && pip install -r requirements.txt
+          echo "Branch: ${BRANCH_NAME}"
+          git --version || true
+          python3 --version || true
+          which python3 || true
+        '''
+      }
+    }
+
+    stage('Setup venv & deps') {
+      steps {
+        sh '''
+          if [ ! -d "${VENV}" ]; then
+            python3 -m venv "${VENV}"
+          fi
+          "${PIP}" install -U pip
+          "${PIP}" install -r requirements.txt
+          "${PY}" -V
+          "${PIP}" --version
         '''
       }
     }
 
     stage('Lint') {
-      steps { sh '''${ACTIVATE} && flake8 app.py''' }
+      steps {
+        sh '''"${F8}" app.py'''
+      }
     }
 
     stage('Test') {
-      steps { sh '''${ACTIVATE} && python -m pytest --maxfail=1 --disable-warnings -q''' }
+      steps {
+        // use 'python -m pytest' style to avoid import quirks
+        sh '''"${PY}" -m pytest --maxfail=1 --disable-warnings -q'''
+      }
     }
 
-    // Graded additions
     stage('Coverage') {
       steps {
         sh '''
-          ${ACTIVATE}
-          coverage run -m pytest
-          coverage report
+          "${COV}" run -m pytest
+          "${COV}" report
         '''
       }
     }
 
     stage('Security Scan') {
-      steps { sh '''${ACTIVATE} && bandit -q -r .''' }
+      steps {
+        // start strict; if it fails due to findings, you can temporarily add:  || true
+        sh '''"${BANDIT}" -q -r .'''
+      }
     }
 
     stage('Deploy') {
       steps {
-        echo "Deploying application locally..."
-        sh '''${ACTIVATE} && python app.py'''
+        echo "Deploying application locally (demo)…"
+        sh '''"${PY}" app.py'''
       }
     }
   }
 
-  post { always { cleanWs() } }
+  post {
+    always {
+      cleanWs()
+    }
+  }
 }
